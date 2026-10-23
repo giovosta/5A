@@ -1,13 +1,34 @@
 package ProgrammazioneConcorrente;
 
-public class ProduttoreConsumatore {
-    public static void main(String[] args) {
-        Buffer b = new Buffer();
-        Produttore p = new Produttore(b);
-        Consumatore c = new Consumatore(b);
+/**
+ * Soluzione in Java del problema classico del Produttore-Consumatore
+ * con buffer circolare.
+ */
 
-        p.start();
-        c.start();
+public class ProduttoreConsumatore {
+    public static void main(String[] args) throws InterruptedException {
+        Buffer b = new Buffer();
+//        Produttore p = new Produttore(b);
+//        Consumatore c = new Consumatore(b);
+//
+//        p.start();
+//        c.start();
+
+        // Test con più thread
+        Thread prod[] = new Thread[3];
+        Thread cons[] = new Thread[3];
+
+        for(int i = 0; i < 3; i++) {
+            prod[i] = new Produttore(b);
+            cons[i] = new Consumatore(b);
+            prod[i].start();
+            cons[i].start();
+        }
+
+        for(int i = 0; i < 3; i++) {
+            prod[i].join();
+            cons[i].join();
+        }
     }
 
     public static class Produttore extends Thread {
@@ -25,12 +46,10 @@ public class ProduttoreConsumatore {
                 Double d = Math.random() * 1000;
                 try {
                     // Inserisce il dato nel buffer
-                    b.inserisci(d);
+                    b.inserisci(d, super.getName());
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                System.out.println("Thread " + super.getName() +
-                        " ha prodotto " + d);
 
                 // Dorme un po'...la Thread.sleep() potrebbe essere
                 // messa anche all'interno del try-catch precedente
@@ -58,12 +77,11 @@ public class ProduttoreConsumatore {
                 double d;
                 try {
                     // Consuma il dato
-                    d = b.consuma();
+                    d = b.consuma(super.getName());
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                System.out.println("Thread " + super.getName() +
-                        " ha consumato " + d);
+
             }
         }
     }
@@ -77,7 +95,7 @@ public class ProduttoreConsumatore {
         // Contatori di elementi nel buffer, posizione in cui inserire/prelevare
         private int contatore = 0, inserisci = 0, preleva = 0;
 
-        public synchronized void inserisci(double d) throws InterruptedException {
+        public synchronized void inserisci(double d, String s) throws InterruptedException {
             // Attendo finché il buffer è pieno
             while(contatore == MAX)
                 wait();
@@ -87,12 +105,15 @@ public class ProduttoreConsumatore {
             // Aggiornamento circolare del buffer
             inserisci = (inserisci + 1) % MAX;
 
+            System.out.println("Thread " + s +
+                    " ha prodotto " + d);
+
             // Aumento il contatore perché c'è un nuovo dato nel buffer
             contatore++;
             notifyAll();
         }
 
-        public synchronized double consuma() throws InterruptedException {
+        public synchronized double consuma(String s) throws InterruptedException {
             // Attendo finché il buffer è vuoto: non c'è niente da consumare
             while(contatore == 0)
                 wait();
@@ -100,6 +121,9 @@ public class ProduttoreConsumatore {
             // Prelevo e faccio l'aggiornamento (circolare) dell'indice
             double d = b[preleva];
             preleva = (preleva + 1) % MAX;
+
+            System.out.println("Thread " + s +
+                    " ha consumato " + d);
 
             // Decremento il contatore: ho consumato un dato
             contatore--;
